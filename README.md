@@ -1,49 +1,95 @@
-# JGU WEKA Rest Service
+# LOG8371 - TP2 - Team Alpha
+* Francis Forget
+* Michaël Salmon
+* Vincent Labonté
+* Samuel Chapleau
 
-RESTful API Webservice to WEKA Machine Learning Algorithms.
-This webservice provides an [OpenRiskNet](https://openrisknet.org/) compliant REST interface to machine learning algorithms from the WEKA Java Library.
-This application is developed by the [Institute of Computer Science](http://www.datamining.informatik.uni-mainz.de/) at the Johannes Gutenberg University Mainz.
-OpenRiskNet is funded by the European Commission GA 731075. WEKA is developed by the [Machine Learning Group](https://www.cs.waikato.ac.nz/ml/index.html) at the University of Waikato.
+## GitHub
+`https://github.com/vincentlabonte/jguwekarest`
 
-See [Documentation](https://jguwekarest.github.io/jguwekarest/), [Issue Tracker](https://github.com/jguwekarest/jguwekarest/issues) and [Code](https://github.com/jguwekarest/jguwekarest) at GitHub.
+## Video
+`https://youtu.be/HTc6p5JIkZw`
 
-## Quickstart
-This is an a swagger-enabled JAX-RS server. The API is in OpenAPI Specification Version 3.0.1 [OpenAPI-Specification 3.0.1](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.1.md)
-The service uses the [JAX-RS](https://jax-rs-spec.java.net/) framework.
+## Setup
+1. Download, Install and [Setup](https://docs.docker.com/get-started/) **Docker**
+2. [Download](https://www.ej-technologies.com/download/jprofiler/files), Install and Setup **JProfiler**
+3. [Download](https://jmeter.apache.org/download_jmeter.cgi), Install and [Setup](http://jmeter.apache.org/usermanual/get-started.html) **JMeter**
+4. Download or Fork our [**GitHub Repository**](https://github.com/vincentlabonte/jguwekarest)
+5. Follow instructions as specified below
 
-To run a simple local environment, please execute the following:
+## Docker
 
-```
-mvn clean package jetty:run
-```
+### Build the Docker Image
 
-You can then view the full Rest API on Swagger-UI here:
+* Download the source code from our Github repository  
+  `git clone git@github.com:vincentlabonte/jguwekarest.git`
+* Change into code directory  
+  `cd jguwekarest`
+* Checkout branch ***master*** for OpenAPI 3.0.1  
+  `git checkout master`
+* Compile the war (Web Application Archive) file with maven  
+  `mvn clean package`
+* Build the docker image (replace dockerhubuser with your docker hub account user)  
+  `docker build -t dockerhubuser/jguweka:OAS3 .`
+* Check images  
+  `docker images`
 
-```
-http://0.0.0.0:8081
-```
+### Run the Docker Container
 
-To connect the server to a mongodb database you can use a standard mongo docker image pulled from docker hub:
+* If you run the container locally don't forget to start also a mongodb container as a data base with:  
+`docker pull mongo; docker run --name mongodb -d mongo`
+* Run the image as a local container (replace dockerhubuser with your docker hub account user)  
+`docker run -p 8080:8080 --link mongodb:mongodb dockerhubuser/jguweka:OAS3`
+* Load the Swagger-UI representation in a web-browser at port 8080  
+  e.g.: `firefox http://0.0.0.0:8080`
 
-```
-docker pull mongo
-docker run -d mongo
-```
+## JProfiler
 
-### *curl* Example
+### Profile the execution using JProfiler
+* Replace dockerhubuser with your docker hub account user in the docker-compose.yml file  
+* Launch the containers  
+  `docker-compose up`
+* Connect to the first container running the WEKA RESTful API Webservice  
+  `docker exec -it jguwekarest_jguweka_1 bash`
+* Attach JProfiler to the running process in the Weka container `/usr/local/jprofiler10.1.5/bin/jpenable -g -p 8849`
+* JProfiler GUI -> Session -> New Session
+* Session Settings -> Session Type -> Attach Type -> Attach to remote JVM
+* Execute docker ps and take note of the port `{rest_port}` linked to port `8849` of the `jguwekarest_jguweka_1` container  
+* Profiled JVM Settings -> Direct network connection to `127.0.0.1` -> Profiling port `{rest_port}`
+* Session Startup -> Initial Profiling Settings -> Sampling (Recommended) -> OK
+* Send requests to the server
+* JProfiler GUI -> Save Snapshot
 
-POST an arff file to the WEKA BayesNet algorithm using curl:
-```
-curl  -X POST -H "Content-Type: multipart/form-data" -H "Accept:text/x-arff" -F "file=@/yourpathtowekadata/weka-3-8-1/data/weather.nominal.arff;" -F "estimatorParams=0.5"  -F "searchAlgorithm=local.K2" -F useADTree=0 -F "estimator=SimpleEstimator" -F searchParams='-P 1 -S BAYES' http://0.0.0.0:8081/algorithm/BayesNet
-```
+## JMeter
 
-## Documentation
+### Create a Test Plan
+* Open JMeter  
+  `jmeter`
+* Add a Thread Group to the Test Plan
+  * Set the number of threads and the ramp-up period
+* Add a HTTP Request Defaults to the Thread Group
+  * Set the protocol (`http`), the server ip (`127.0.0.1`) and the port number (`80`)
+  * Set the client implementation to `Java` in the Advanced tab
+* Add a HTTP Header Manager to the Thread Group
+  * Add header `Content-Type:multipart/form-data`
+  * Add header `Accept:application/json`
+* Add a HTTP Request to the Thread Group
+  * Set the method (`POST`), the path (`/algorithm/BayesNet`)
+  * Check `multipart/form-data`
+  * Add a File Upload with the file path, the parameter name (`file`) and the MIME Type (`text/plain`)
+* Add a listener to the Thread Group  
+  e.g.: `View Results Tree`
+* Save the Test Plan as a jmx file
 
- * Full example for a **[local or server hosted development environment](./doc/DockerizedDevEnvSetup.md).** 
- * Docker Deployment: **[Build the Docker image with a Dockerfile](./doc/DockerImageDeployment.md)**.
- * Running tests: **[Run Tests](./doc/Testing.md)**.
- * OpenShift Deployment: **[Deployment in OpenShift](./openshift/README.md)**.
- * Commandline Examples with Curl: **[Curl Examples](./doc/CommandlineCurlExamples.md)**.
- * Authentication: **[Keycloak Integration](./doc/TomcatKeyCloakSetup.md)**.
- * Java Docs on gh-pages: **[JavaDocs](https://jguwekarest.github.io/jguwekarest/javadoc/index.html)**.
- 
+### Execute the Test Plan
+* Launch the containers  
+  `docker-compose up`
+* Execute the test  
+  `jmeter -n -t [jmx file] -l [csv results file]`
+  
+### Profile the execution of scenarios with JProfiler
+* Profile the execution using JProfiler
+* Create a Test Plan using JMeter
+* Execute the Test Plan
+ * Save a snapshot using JProfiler
+* Repeat for each scenario (small, average, augmented, exceptional)
